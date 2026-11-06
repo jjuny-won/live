@@ -15,7 +15,7 @@
 ## 🟡 정해야 할 것
 | # | 항목 | 선택지 | 기본값(개발 진행용) | 결정 |
 |---|---|---|---|---|
-| B1 | 서비스 이름 / 저장소 이름 | 자유 | `live-contest` (가칭) | |
+| B1 | 서비스 이름 / 저장소 이름 | 자유 | `live` (가칭) | |
 | B2 | 미디어 서버 | LiveKit Cloud / 자체 호스팅 | LiveKit Cloud | |
 | B3 | 비로그인 시청 허용 | 허용(채팅·후원은 로그인) / 로그인 필수 | 허용 | |
 | B4 | 백엔드 호스팅 | AWS Lightsail·EC2 / Oracle Always Free / Render·Railway·Fly.io | 미정(로컬 개발 먼저) | |

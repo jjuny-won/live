@@ -2,7 +2,7 @@
 
 | 세션 | 작업 위치 | 브랜치 | 수정 범위 |
 |---|---|---|---|
-| 문서화·학습 | 메인 폴더 `~/Developer/live-contest` | `main` | `docs/`, 루트 `README.md` |
+| 문서화·학습 | 메인 폴더 `~/Developer/Portfolio/live` | `main` | `docs/`, 루트 `README.md` |
 | BE 개발 | 별도 worktree | `be/...` | `backend/`, `docker-compose.yml`, `.env.example`, `infra/` |
 | FE 개발 | 별도 worktree | `fe/...` | `frontend/` |
 
