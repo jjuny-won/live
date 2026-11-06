@@ -1,0 +1,23 @@
+# 로컬 개발용 인프라. 실행: docker compose up -d
+# 값은 루트 .env 에서 읽는다(.env.example 참고).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: live-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-live}
+      POSTGRES_USER: ${DB_USERNAME:-live}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-live}
+      TZ: UTC
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - live-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-live} -d ${DB_NAME:-live}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  live-postgres-data:
