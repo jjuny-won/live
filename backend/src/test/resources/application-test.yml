@@ -1,0 +1,9 @@
+livekit:
+  url: wss://test.livekit.invalid
+  api-key: test-api-key
+  api-secret: test-api-secret-0123456789abcdef0123456789
+app:
+  jwt:
+    secret: test-jwt-secret-0123456789abcdef0123456789abcdef
+  demo:
+    password: demo-test-pw
