@@ -1,0 +1,131 @@
+# 전체 흐름 한눈에 보기
+
+> 이 프로젝트가 **어떻게 돌아가고**(서비스 흐름), **어떻게 만들어지고**(작업 흐름), **지금 어디쯤인지**(현재 위치)를 한 장으로 정리했습니다.
+> 마지막 갱신: 2026-11-07 13:30
+
+---
+
+## 1. 서비스는 이렇게 돌아간다
+
+### 1-1. 등장인물 4개
+
+| 구성 요소 | 하는 일 | 비유 |
+|---|---|---|
+| **프론트(React)** | 화면. 카메라·화면을 잡아서 보내고, 받은 영상을 보여 줌 | 방송국 스튜디오 + TV |
+| **백엔드(Spring Boot)** | 회원·방송 정보 저장, **"너는 송출해도 돼 / 시청만 해"라는 출입증(토큰) 발급** | 매표소 |
+| **LiveKit Cloud(SFU)** | 영상·소리를 실제로 받아서 시청자들에게 나눠 줌 | 방송 송신탑 |
+| **PostgreSQL** | 회원, 방송, (나중에) 채팅·후원·녹화 기록 | 장부 |
+
+핵심: **영상은 백엔드를 거치지 않는다.** 백엔드는 출입증만 주고, 영상은 브라우저 ↔ LiveKit 사이로만 흐른다.
+
+```mermaid
+flowchart LR
+  S[방송자 브라우저] -- "① 로그인·방송 시작 요청 (REST)" --> B[Spring Boot]
+  B -- "② 송출 토큰" --> S
+  S == "③ 화면·소리·마이크 (WebRTC)" ==> L[LiveKit Cloud]
+  V[시청자 브라우저] -- "④ 시청 토큰 요청 (REST)" --> B
+  B -- "⑤ 시청 토큰" --> V
+  L == "⑥ 영상·소리 (WebRTC)" ==> V
+  L -. "⑦ 웹훅: 방 시작/종료, 입장/퇴장" .-> B
+  B --- D[(PostgreSQL)]
+```
+
+### 1-2. 방송자 한 번의 흐름
+
+| 단계 | 화면(FE 경로) | 호출하는 API | 일어나는 일 |
+|---|---|---|---|
+| 1. 로그인 | `/login` | `POST /api/auth/login` 또는 `/test-login` | Access 토큰(30분) + Refresh 쿠키(14일) 받음 |
+| 2. 방송 만들기 | `/broadcasts/new` | `POST /api/broadcasts` | DB에 방송 생성, 상태 `READY` |
+| 3. 스튜디오 입장 | `/studio/:id` | — | PC면 화면공유 UI, 휴대폰이면 카메라 UI로 자동 분기 |
+| 4. 방송 시작 | 〃 [방송 시작] 버튼 | `POST /api/broadcasts/{id}/start` | 백엔드가 **소유자인지 확인** → 송출 토큰 발급, 상태 `LIVE` |
+| 5. 송출 | 〃 | (LiveKit SDK) | `getDisplayMedia`(화면+소리) + `getUserMedia`(마이크/카메라) → 트랙별로 LiveKit에 publish |
+| 6. 방송 종료 | 〃 [종료] | `POST /api/broadcasts/{id}/end` | 상태 `ENDED`, LiveKit 방 닫힘 |
+
+### 1-3. 시청자 한 번의 흐름
+
+| 단계 | 화면 | API | 일어나는 일 |
+|---|---|---|---|
+| 1. 목록 | `/` | `GET /api/broadcasts?status=LIVE` | LIVE 방송이 위에, 시청자 수 표시 |
+| 2. 입장 | `/live/:id` | `POST /api/broadcasts/{id}/viewer-token` | 로그인 안 해도 됨(B3). 토큰은 `canPublish=false` → 미디어 서버 수준에서 송출 불가 |
+| 3. 시청 | 〃 | (LiveKit SDK) | 방송자 트랙을 구독, [소리 켜기] 버튼 누르면 소리 재생(자동재생 정책) |
+| 4. 방송 끝남 | `/live/:id/ended` | — | 방송자가 끝내면 종료 화면으로 |
+
+### 1-4. 상태가 바뀌는 길 (웹훅)
+
+브라우저가 그냥 꺼져도(종료 버튼 안 누르고) 목록에서 LIVE가 풀려야 한다. 그래서 LiveKit이 백엔드에 알려 준다.
+
+```mermaid
+stateDiagram-v2
+  [*] --> READY: 방송 만들기
+  READY --> LIVE: /start
+  LIVE --> ENDED: /end 또는 웹훅 room_finished
+  ENDED --> LIVE: /start 다시 (재방송 허용)
+```
+
+- `participant_joined / left` 웹훅 → 시청자 수 갱신
+- 로컬 개발 중에는 LiveKit이 내 PC로 웹훅을 못 보냄 → `cloudflared` 터널 필요(배포 후엔 해결)
+
+### 1-5. 권한(소유자 확인)은 두 겹
+
+1. **API 레벨**: 수정·삭제·시작·종료 시 `방송.owner == 로그인 사용자` 아니면 403 `BROADCAST_FORBIDDEN`
+2. **미디어 레벨**: 송출 토큰은 소유자에게만. 시청 토큰은 `canPublish=false`라 남의 방에 영상을 올릴 수 없음
+
+→ 제출 폼 "인증·인가" 근거에 그대로 쓰는 문장.
+
+---
+
+## 2. 작업은 이렇게 굴러간다
+
+```mermaid
+flowchart TB
+  U((사용자)) -- 결정·직접 할 일 --> DOC
+  DOC["문서 세션 (main)<br/>docs/, README"] -- API.md 계약 --> BE["BE 세션<br/>.worktrees/be · be/core"]
+  DOC -- API.md 계약 --> FE["FE 세션<br/>.worktrees/fe · fe/core"]
+  BE -- 커밋 --> M{{main 병합<br/>사용자가 결정}}
+  FE -- 커밋 --> M
+  DOC -- 커밋 --> M
+  M -- 푸시 --> GH[(GitHub 공개 저장소<br/>A2: 사용자가 생성)]
+  GH --> DEP[배포: Vercel + VM<br/>A3]
+```
+
+| 누가 | 어디서 | 무엇을 |
+|---|---|---|
+| **사용자** | 브라우저·터미널 | 결정(B 항목), 가입·키 발급·결제(A 항목), 병합·푸시, 실기기 테스트, 제출 |
+| 문서 세션 | `main` 메인 폴더 | 문서·학습 노트, 진행 표, 하루 2번(12시·24시) 현황 갱신 |
+| BE 세션 | `.worktrees/be` (`be/core`) | `backend/`, docker-compose |
+| FE 세션 | `.worktrees/fe` (`fe/core`) | `frontend/` |
+
+규칙 3개만 기억하기
+1. BE·FE가 만나는 지점은 **`docs/API.md` 하나**. 바뀌면 양쪽에 알린다.
+2. 브랜치는 기능이 끝나면 `main`에 합친다. 합치기·푸시는 사용자가 한다.
+3. 비밀값(LiveKit 키 등)은 `.env`에만, 커밋 금지.
+
+---
+
+## 3. 지금 어디쯤인가 (11/7 13:30 기준)
+
+```
+일정:  D0 준비 ─ D1 BE골격 ─ D2 방송CRUD ─ D3 FE골격 ─ D4 스튜디오·첫배포 ─ D5 모바일 ─ D6 웹훅 ─ D7 동결
+코드:  ✅        ✅          ✅            ✅          🟡(코드만, 실연결 X)   🟡(코드만)  ✅(코드)
+```
+
+**코드는 일정보다 빠르다.** BE는 인증·방송 CRUD·토큰·웹훅까지, FE는 모든 페이지와 PC/모바일 스튜디오·시청 화면까지 만들어 둔 상태(FE는 목업 API로 동작 확인).
+**하지만 아직 한 번도 "진짜로" 연결해 본 적이 없다.** 막혀 있는 이유는 전부 사용자 쪽 할 일:
+
+| 막힌 것 | 왜 막히나 | 풀리면 |
+|---|---|---|
+| **A1 LiveKit 키 없음** (`.env` 없음) | 키가 없으면 `/start`, `/viewer-token`이 503 | 실제 송출·시청 테스트 가능 |
+| **B11 Node 아직 v16** | FE는 Node 20.19 이상 필요 | 내 PC에서 `npm run dev` 가능 |
+| **브랜치 미병합** | `be/core`, `fe/core`가 main에 없음 | 한 폴더에서 BE+FE 같이 실행 |
+| **B1 이름 미정** | GitHub 저장소(A2)를 못 만듦 | 푸시·배포 준비 |
+
+### 다음 순서 (이대로만 하면 됨)
+
+1. **Node 20 설치** → `nvm install 20 && nvm alias default 20`
+2. **LiveKit Cloud 가입·키 발급** → 루트에 `.env` 만들고 3개 값 입력 (`.env.example` 참고)
+3. **로컬에서 처음으로 끝까지 해 보기**: `docker compose up -d` → 백엔드 `./gradlew bootRun` → 프론트 `npm run dev` → 테스트 계정으로 로그인 → 방송 만들기 → 방송 시작 → 시크릿 창에서 시청
+4. 되면 `be/core`, `fe/core`를 `main`에 병합
+5. 이름(B1) 정하고 GitHub 저장소 생성·푸시(A2)
+6. 호스팅(B4)·도메인(B5) 정하고 첫 배포(11/10 목표) → 휴대폰 LTE로 시청 확인
+
+> 3번에서 막히는 곳이 생기면 그게 바로 공부할 지점입니다. 학습 노트(`docs/study/`)와 연결해서 정리해 드립니다.
