@@ -64,8 +64,23 @@ export interface ViewerTokenResponse extends StartBroadcastResponse {
   canChat: boolean
 }
 
+export type ApiErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'UNAUTHORIZED'
+  | 'INVALID_TOKEN'
+  | 'INVALID_CREDENTIALS'
+  | 'INVALID_REFRESH_TOKEN'
+  | 'ACCESS_DENIED'
+  | 'BROADCAST_FORBIDDEN'
+  | 'MEMBER_NOT_FOUND'
+  | 'BROADCAST_NOT_FOUND'
+  | 'EMAIL_DUPLICATED'
+  | 'NICKNAME_DUPLICATED'
+  | 'BROADCAST_NOT_LIVE'
+  | 'LIVEKIT_NOT_CONFIGURED'
+
 export interface ApiErrorBody {
-  code: string
+  code: ApiErrorCode | (string & {})
   message: string
   status: number
 }

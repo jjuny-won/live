@@ -53,11 +53,9 @@ export function OwnerActions({ broadcast: b, compact = false }: { broadcast: Bro
   const size = compact ? 'px-2.5 py-1.5 text-xs' : ''
   return (
     <div className="flex flex-wrap gap-2">
-      {b.status !== 'ENDED' && (
-        <Link to={`/studio/${b.id}`} className={`btn btn-primary ${size}`}>
-          {b.status === 'LIVE' ? '스튜디오' : '방송 시작'}
-        </Link>
-      )}
+      <Link to={`/studio/${b.id}`} className={`btn btn-primary ${size}`}>
+        {b.status === 'LIVE' ? '스튜디오' : b.status === 'ENDED' ? '다시 방송' : '방송 시작'}
+      </Link>
       <Link to={`/broadcasts/${b.id}/edit`} className={`btn btn-secondary ${size}`}>
         수정
       </Link>

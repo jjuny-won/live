@@ -19,9 +19,10 @@ export function SignupPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (form.password.length < 8) return setError('비밀번호는 8자 이상이어야 합니다.')
+    if (form.password.length < 8 || form.password.length > 64) return setError('비밀번호는 8~64자로 입력해 주세요.')
     if (form.password !== form.passwordConfirm) return setError('비밀번호가 일치하지 않습니다.')
-    if (form.nickname.trim().length < 2) return setError('닉네임은 2자 이상이어야 합니다.')
+    const nick = form.nickname.trim()
+    if (nick.length < 2 || nick.length > 20) return setError('닉네임은 2~20자로 입력해 주세요.')
     setPending(true)
     setError(null)
     try {
@@ -38,7 +39,7 @@ export function SignupPage() {
       <form onSubmit={onSubmit} className="space-y-3">
         <input className="input" type="email" autoComplete="email" placeholder="이메일" value={form.email} onChange={set('email')} required />
         <input className="input" autoComplete="nickname" placeholder="닉네임 (2~20자)" maxLength={20} value={form.nickname} onChange={set('nickname')} required />
-        <input className="input" type="password" autoComplete="new-password" placeholder="비밀번호 (8자 이상)" value={form.password} onChange={set('password')} required />
+        <input className="input" type="password" autoComplete="new-password" placeholder="비밀번호 (8~64자)" maxLength={64} value={form.password} onChange={set('password')} required />
         <input className="input" type="password" autoComplete="new-password" placeholder="비밀번호 확인" value={form.passwordConfirm} onChange={set('passwordConfirm')} required />
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button className="btn btn-primary w-full py-2.5" disabled={pending}>
