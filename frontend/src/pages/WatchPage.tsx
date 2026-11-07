@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { broadcastApi, useBroadcast } from '@/api/broadcasts'
+import { errorMessage, hasErrorCode } from '@/api/client'
 import { CATEGORY_LABEL, type Broadcast } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { ErrorState } from '@/components/ErrorState'
@@ -14,6 +16,8 @@ import { OwnerActions } from './MyBroadcastsPage'
 export function WatchPage() {
   const id = Number(useParams().id)
   const q = useBroadcast(id, { refetchInterval: 10_000 })
+  const { refetch } = q
+  const refresh = useCallback(() => void refetch(), [refetch])
 
   if (q.isPending) return <Spinner className="py-24" />
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />
@@ -25,7 +29,7 @@ export function WatchPage() {
       <div className="min-w-0 space-y-4">
         <div className="relative aspect-video overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800">
           {b.status === 'LIVE' ? (
-            <LiveSection broadcast={b} onDisconnected={() => q.refetch()} />
+            <LiveSection broadcast={b} onDisconnected={refresh} />
           ) : (
             <div className="flex size-full flex-col items-center justify-center gap-2 text-center text-zinc-400">
               <div className="text-4xl">⏳</div>
@@ -51,8 +55,27 @@ function LiveSection({ broadcast, onDisconnected }: { broadcast: Broadcast; onDi
     staleTime: Infinity,
     gcTime: 0,
   })
+  const notLive = hasErrorCode(token.error, 'BROADCAST_NOT_LIVE')
+  // 목록에선 LIVE였지만 그새 끝난 경우 → 방송 상태를 다시 받아 종료/대기 화면으로
+  useEffect(() => {
+    if (notLive) onDisconnected()
+  }, [notLive, onDisconnected])
+
   if (token.isPending) return <Spinner className="size-full" label="입장 준비 중" />
-  if (token.isError) return <ErrorState error={token.error} onRetry={() => token.refetch()} />
+  if (token.isError) {
+    const noLiveKit = hasErrorCode(token.error, 'LIVEKIT_NOT_CONFIGURED')
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="text-4xl">{noLiveKit ? '🛠️' : '⚠️'}</div>
+        <p className="max-w-md text-sm text-zinc-300">{errorMessage(token.error)}</p>
+        {!notLive && (
+          <button className="btn btn-secondary" onClick={() => token.refetch()}>
+            다시 시도
+          </button>
+        )}
+      </div>
+    )
+  }
   return <LivePlayer token={token.data} onDisconnected={onDisconnected} />
 }
 

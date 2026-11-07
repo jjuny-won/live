@@ -17,10 +17,22 @@ export function isApiError(e: unknown, status?: number): e is ApiError {
   return e instanceof ApiError && (status === undefined || e.status === status)
 }
 
+export function hasErrorCode(e: unknown, code: string): e is ApiError {
+  return e instanceof ApiError && e.code === code
+}
+
+/** 코드별로 서버 문구 대신 보여 줄 안내 (docs/API.md 에러 코드) */
+const CODE_MESSAGE: Record<string, string> = {
+  LIVEKIT_NOT_CONFIGURED:
+    '미디어 서버(LiveKit)가 아직 설정되지 않아 송출·시청을 할 수 없습니다. 서버의 .env에 LIVEKIT_URL·LIVEKIT_API_KEY·LIVEKIT_API_SECRET을 넣고 다시 실행해 주세요.',
+  BROADCAST_NOT_LIVE: '지금은 방송 중이 아닙니다.',
+  INVALID_TOKEN: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+}
+
 export function errorMessage(e: unknown, fallback = '요청을 처리하지 못했습니다.'): string {
   if (e instanceof ApiError) {
     if (e.status === 0) return '서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해 주세요.'
-    return e.message || fallback
+    return CODE_MESSAGE[e.code] ?? (e.message || fallback)
   }
   if (e instanceof Error) return e.message
   return fallback
@@ -152,8 +164,10 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
       if (next) {
         res = await send(next)
       } else if (hadToken) {
+        // 만료·위조 토큰은 공개 API에서도 401(INVALID_TOKEN) → 토큰을 버리고 비로그인으로 한 번 더
         setAccessToken(null)
         authLostListeners.forEach((l) => l())
+        res = await send(null)
       }
     }
   } catch (e) {

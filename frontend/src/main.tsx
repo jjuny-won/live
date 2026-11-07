@@ -13,8 +13,9 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 10_000,
       refetchOnWindowFocus: false,
-      // 4xx는 재시도해도 같은 결과
-      retry: (count, e) => !(isApiError(e) && e.status >= 400 && e.status < 500) && count < 2,
+      // 4xx와 설정 문제(503 LIVEKIT_NOT_CONFIGURED)는 재시도해도 같은 결과
+      retry: (count, e) =>
+        !(isApiError(e) && ((e.status >= 400 && e.status < 500) || e.code === 'LIVEKIT_NOT_CONFIGURED')) && count < 2,
     },
   },
 })
