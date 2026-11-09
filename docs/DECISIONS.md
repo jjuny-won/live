@@ -5,7 +5,7 @@
 ## 🔴 직접 해야 하는 일 (Claude가 대신 못 함)
 | # | 할 일 | 기한 | 상태 |
 |---|---|---|---|
-| A1 | **LiveKit Cloud 가입** → 프로젝트 생성 → `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` 발급, 로컬 `.env`에만 저장. 대시보드에서 무료 한도(참가자-분, 동시 접속, Egress) 확인 | 11/7 | ⬜ |
+| A1 | **LiveKit Cloud 가입** → 프로젝트 생성 → `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` 발급, 로컬 `.env`에만 저장. 대시보드에서 무료 한도(참가자-분, 동시 접속, Egress) 확인 | 11/7 | ✅ 11/9 키 연결 확인 (무료 한도 수치 기록 남음) |
 | A2 | **GitHub 공개 저장소 생성** 후 이 폴더를 remote로 연결·푸시 (저장소 이름은 B1) | 11/9 | ⬜ |
 | A3 | 배포용 VM·도메인 결제/가입 (B4, B5 결정 후) | 11/10 | ⬜ |
 | A4 | (녹화 시) Cloudflare R2 또는 AWS S3 버킷·키 발급 | 11/14 | ⬜ |
