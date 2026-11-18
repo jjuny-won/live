@@ -1,0 +1,43 @@
+# Render Blueprint: 백엔드(Docker) + PostgreSQL
+# Render 대시보드 → New → Blueprint → 이 저장소 선택. LIVEKIT_* 3개만 직접 입력.
+services:
+  - type: web
+    name: live-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase: { name: live-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: live-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: live-db, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: live-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: live-db, property: password }
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: Lax
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://*.vercel.app,http://localhost:5173
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+
+databases:
+  - name: live-db
+    plan: free
+    region: singapore
+    databaseName: live
+    user: live
